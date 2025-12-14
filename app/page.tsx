@@ -67,6 +67,37 @@ export default function Home(): JSX.Element {
   const reminderTimers = React.useRef<Record<string, number>>({});
   const supabase = React.useMemo(() => (hasSupabaseEnv ? createSupabaseClient() : null), []);
 
+  // Suppress network aborted/ECONNRESET noise to avoid crashing logs
+  React.useEffect(() => {
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason as { code?: string; name?: string; message?: string } | unknown;
+      if (
+        typeof reason === "object" &&
+        reason !== null &&
+        (
+          (reason as { code?: string }).code === "ECONNRESET" ||
+          (reason as { name?: string }).name === "AbortError" ||
+          ((reason as { message?: string }).message?.toLowerCase().includes("aborted") ?? false)
+        )
+      ) {
+        event.preventDefault();
+      }
+    };
+    const onErrorEvent = (event: ErrorEvent) => {
+      const code = (event.error as { code?: string } | undefined)?.code;
+      const msg = event.message?.toLowerCase() ?? "";
+      if (code === "ECONNRESET" || msg.includes("aborted")) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    window.addEventListener("error", onErrorEvent);
+    return () => {
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+      window.removeEventListener("error", onErrorEvent);
+    };
+  }, []);
+
   const requestNotificationPermission = async () => {
     try {
       if (!("Notification" in window)) return;
@@ -106,13 +137,17 @@ export default function Home(): JSX.Element {
 
       // Handle simple recurrence scheduling
       const rec = rem.recurrence;
-      if (rec && rec !== "none") {
-        const base = new Date(rem.remind_at);
-        undefined next: Date = new Date(base);
-        if (rec === "daily") next.setDate(base.getDate() + 1);
-        else if (rec === "weekly") next.setDate(base.getDate() + 7);
-        else if (rec === "monthly") next.setMonth(base.getMonth() + 1);
-        await supabase.from("reminders").update({ remind_at: next.toISOString() }).eq("id", rem.id);
+      if (rec && rec !== "none" && supabase) {
+        try {
+          const base = new Date(rem.remind_at);
+          let next: Date = new Date(base);
+          if (rec === "daily") next.setDate(base.getDate() + 1);
+          else if (rec === "weekly") next.setDate(base.getDate() + 7);
+          else if (rec === "monthly") next.setMonth(base.getMonth() + 1);
+          await supabase.from("reminders").update({ remind_at: next.toISOString() }).eq("id", rem.id);
+        } catch (err: unknown) {
+          // ignore network aborts/ECONNRESET
+        }
       }
       delete reminderTimers.current[rem.id];
     }, delay);
@@ -583,7 +618,6 @@ export default function Home(): JSX.Element {
     const done = tasks.filter((t) => t.state === "done").length;
     const inprogress = tasks.filter((t) => t.state === "inprogress").length;
     const todo = tasks.filter((t) => t.state === "todo").length;
-并发
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
     return (
@@ -614,7 +648,7 @@ export default function Home(): JSX.Element {
     monday.setDate(now.getDate() - mondayOffset);
     monday.setHours(0, 0, 0, 0);
 
-    const days: Date[] = Array.from({ length:  undefined }, (_, i) => {
+    const days: Date[] = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
       return d;
@@ -700,7 +734,6 @@ export default function Home(): JSX.Element {
     }: {
       title: string;
       state: TaskState;
-     并发
       description: string;
       accent: string; // gradient colors
     }) => {
@@ -882,8 +915,7 @@ export default function Home(): JSX.Element {
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed inset-0 z-30 flex items-end md:items
--center justify-center px-4 py-6 bg-black/30"
+        className="fixed inset-0 z-30 flex items-end md:items-center justify-center px-4 py-6 bg-black/30"
         onClick={() => setIsTaskModalOpen(false)}
       >
         <div
