@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* No global colors; components decide their own colors */
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+
+  /* Calming gradient background utility */
+  .calm-gradient {
+    background: radial-gradient(1200px circle at 10% 10%, rgba(147, 197, 253, 0.35), transparent 40%),
+      radial-gradient(800px circle at 90% 20%, rgba(204, 180, 255, 0.35), transparent 35%),
+      radial-gradient(1000px circle at 50% 90%, rgba(153, 246, 228, 0.35), transparent 45%);
+  }
+  .dark .calm-gradient {
+    background: radial-gradient(1200px circle at 10% 10%, rgba(59, 130, 246, 0.2), transparent 40%),
+      radial-gradient(800px circle at 90% 20%, rgba(139, 92, 246, 0.2), transparent 35%),
+      radial-gradient(1000px circle at 50% 90%, rgba(16, 185, 129, 0.2), transparent 45%);
+  }
+
+  /* Animations */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
+  }
+  .animate-fade-in { animation: fade-in 500ms ease-out both; }
+  .animate-slide-up { animation: slide-up 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .animate-shake { animation: shake 450ms cubic-bezier(.36,.07,.19,.97) both; }
+
+  /* Subtle hover/tap utilities */
+  .hover-scale {
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+  .hover-scale:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Accessible focus ring */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-300;
+  }
+
+  /* Drag and drop hover state */
+  .dnd-hover {
+    box-shadow: inset 0 0 0 2px rgba(59,130,246,0.35);
+    background-image: linear-gradient(180deg, rgba(59,130,246,0.10), transparent);
+  }
+  .dark .dnd-hover {
+    box-shadow: inset 0 0 0 2px rgba(147,197,253,0.35);
+    background-image: linear-gradient(180deg, rgba(147,197,253,0.08), transparent);
+  }
+}
