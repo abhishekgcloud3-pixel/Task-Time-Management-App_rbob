@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import type { Enums, Tables } from "@/database.types";
 
@@ -22,6 +23,7 @@ function uid(prefix = "id"): string {
 const hasSupabaseEnv =
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  
 
 export default function Home(): JSX.Element {
   // Gate
@@ -40,7 +42,7 @@ export default function Home(): JSX.Element {
   // App state
   const [activeTab, setActiveTab] = React.useState<"overview" | "categories">("overview");
   const [showMobileNav, setShowMobileNav] = React.useState<boolean>(false);
-  const [collapsedGroupsebaGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
 
   // Data from Supabase
   const [categories, setCategories] = React.useState<Category[]>([]);
@@ -65,7 +67,11 @@ export default function Home(): JSX.Element {
 
   // Notifications
   const reminderTimers = React.useRef<Record<string, number>>({});
-  const supabase = React.useMemo(() => (hasSupabaseEnv ? createSupabaseClient() : null), []);
+  // Create client only if envs exist and on the client to avoid storage errors during SSR
+  const supabase = React.useMemo(
+    () => ((typeof window !== "undefined" && hasSupabaseEnv) ? createSupabaseClient() : null),
+    []
+  );
 
   // Suppress network aborted/ECONNRESET noise to avoid crashing logs
   React.useEffect(() => {
@@ -909,6 +915,48 @@ export default function Home(): JSX.Element {
     );
   };
 
+  const CategoryTasksView = () => {
+    return (
+      <section className="rounded-2xl p-4 backdrop-blur-sm border bg-white/70 border-white/30 shadow-md dark:bg-neutral-800/60 dark:border-neutral-700/50 animate-fade-in">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-md bg-gradient-to-r from-indigo-500 to-purple-500" />
+            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Tasks by Category</h2>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {categories.map((category) => {
+            const categoryTasks = tasks.filter((t) => t.category_id === category.id);
+            return (
+              <div key={category.id} className="rounded-xl border bg-white/60 dark:bg-neutral-800/50 border-white/30 dark:border-neutral-700/50">
+                <div className="px-3 py-2 border-b border-white/20 dark:border-neutral-700/50">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-5 w-5 rounded-md bg-gradient-to-r ${category.color}`} />
+                    <span className="text-sm font-medium text-neutral-800 dark:text-neutral-100">
+                      {category.icon} {category.name}
+                    </span>
+                    <span className="text-xs text-neutral-600 dark:text-neutral-300">({categoryTasks.length} tasks)</span>
+                  </div>
+                </div>
+                <div className="p-3">
+                  {categoryTasks.length === 0 ? (
+                    <div className="text-sm text-neutral-600 dark:text-neutral-300">No tasks in this category.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {categoryTasks.map((task) => (
+                        <TaskCard key={task.id} t={task} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
   const TaskModal = () => {
     if (!isTaskModalOpen) return null;
     return (
@@ -1222,7 +1270,12 @@ export default function Home(): JSX.Element {
                   <Overview />
                 </>
               )}
-              {!isLoadingData && activeTab === "categories" && <CategoryManager />}
+              {!isLoadingData && activeTab === "categories" && (
+                <>
+                  <CategoryManager />
+                  <CategoryTasksView />
+                </>
+              )}
             </main>
           </div>
         </div>
